@@ -39,28 +39,23 @@ col_names_original = list(X.columns)
 #### delete unwanted character-combos from the column-names ####
 
 #list with unwanted character-combos
-trashs = ["(-)", ".1", "(ms)", "(-/min)", "(dB)", "(‰/min)", "(-/min2)",
+trashs = ["(-)", "(ms)", "(-/min)", "(dB)", "(‰/min)", "(-/min2)",
           "(mg/day)", "-", ":", "(years)"]
 
 #new list for the manipulated variable-names
 new_cols = [] 
 
+#assign original column names to new list for the upcoming loop
+cols = col_names_original
+
 #delete all unwanted character-combos
 for trash in trashs:
     
-    #load in the original column names within the first iteration
-    if trash == trashs[0]: 
-        cols = col_names_original
-        
-    #update column names by deleting unwanted strings   
-    cols = [col.replace(trash,"") for col in cols]
-    
-    #when the last iteration is completed -> save the modified list to the new_cols list
-    if trash == trashs[len(trashs)-1]:
-        new_cols = cols
+    #for all unwanted symbols (trash), replace them with nothing        
+    cols = [col.replace(trash,"") for col in cols]    
 
 #assign new column names to the DataFrame        
-X.columns = new_cols 
+X.columns = cols 
 
 #### more variable-names cleaning ####
 
@@ -83,7 +78,17 @@ for i in range(X.shape[1]):
     #if there is a digit in the fist four characters of the colname, then delete the first four characters of the string
     if any(map(str.isdigit, first_four)): 
         X.rename(columns={X.columns[i]: X.columns[i][4:]}, inplace=True)  
- 
+
+#replace .1 with indication for monologue
+X.columns = X.columns.str.replace(".1", "monologue")
+
+#manually fixing the name that did not convert 
+X.columns.values[58] = "gaping inbetween voiced intervals monologue"
+
+#add indication for reading task column
+for i in range(41,53):
+    X.columns.values[i] = X.columns.values[i] + " reading"
+
 #convert whitespace to underscore
 X.columns = X.columns.str.replace(" ", "_")  
 
@@ -98,7 +103,6 @@ var_summary = {
     }
 var_summary = pd.DataFrame(var_summary)
 
-#write dictionary file to report folder
 '''
 var_summary.to_excel("..\\report\\dictionary.xlsx",
                      index=False,
@@ -116,12 +120,15 @@ del [col_names_new,
 
 #---- tidy values of columns ----#
 
-#tidy anti..._therapy col, which contains "Yes" and medication
+#tidy anti..._therapy & benzo..._medication cols, which contain "Yes" + medication
 for i in range(len(X)):
     if X.at[i, "antidepressant_therapy"] != "No":
         X.at[i, "antidepressant_therapy"] = "Yes"
+    if X.at[i, "benzodiazepine_medication"] != "No":
+        X.at[i, "benzodiazepine_medication"] = "Yes"
 
 #check
+print(X["benzodiazepine_medication"].value_counts())
 print(X["antidepressant_therapy"].value_counts())
 
 #---- Output ----#

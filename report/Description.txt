@@ -25,3 +25,54 @@ Inspiration
 Predict a pattern of neurodegeneration in the dataset of speech
 features obtained from patients with early untreated Parkinson's
 disease and patients at high risk developing Parkinson's disease.
+
+#Some further explanations:
+
+Participants participated in two different tasks:
+1. Reading
+2. Monologue  
+
+The state of the Morbus Parkinson disease can be examined with
+different clinical assessments:
+
+Hoehn & Yahr Scale:
+https://flexikon.doccheck.com/de/Hoehn-und-Yahr-Skala
+The Hoehn-and-Yahr scale is used to classify the severity of PD 
+based on symptoms. It is an easy-to-perform clinical instrument
+to assess the underlying movement disorders.
+The Hoehn and Yahr scale was developed in 1967. It divides the
+disease into 5 stages. So-called modified stages according to Hoehn
+ and Yahr (1987) are also frequently used.
+States:
+1) Unilateral symptomatology
+1.5) Unilateral symptoms and axial involvement
+2) Bilateral symptoms; no postural instability
+2.5) Mild bilateral symptoms; patient can regain balance on pull
+test (compensates on pull test)
+3) Mild to moderate bilateral symptomatology; mild postural
+instability; independence maintained
+4) Severe disability, but patient can still walk and stand without
+assistance
+5) Patient is wheelchair bound or bedridden without assistance
+from others
+
+UPDRS III total
+https://www.theracycle.com/resources/links-and-additional-resources/updrs-scale/
+The UPDRS scale refers to Unified Parkinson Disease Rating Scale,
+and it is a rating tool used to gauge the course of Parkinson’s
+disease in patients. The UPDRS scale has been modified over the
+years by several medical organizations, and continues to be one of
+the bases of treatment and research in PD clinics. The UPDRS scale
+includes series of ratings for typical Parkinson’s symptoms that
+cover all of the movement hindrances of Parkinson’s disease. The
+UPDRS scale consists of the following five segments: 
+1) Mentation, Behavior, and Mood, 2) ADL, 3) Motor sections, 
+4) Modified Hoehn and Yahr Scale, and 5) Schwab and England ADL
+scale. 
+Each answer to the scale is evaluated by a medical professional
+that specializes in Parkinson’s disease during patient interviews.
+Some sections of the UPDRS scale require multiple grades assigned
+to each extremity with a possible maximum of 199 points. A score of
+199 on the UPDRS scale represents the worst (total disability) with
+a score of zero representing (no disability).
+

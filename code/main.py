@@ -145,8 +145,15 @@ del [i,
 #----- Predict early-onset parkinson disease -----#
 
 #prepare data
-X_pred = X_nona.loc[:, X_nona.columns != "participant_code"]
+X_pred = X_nona.drop(["age",
+                      "gender",
+                      "participant_code",
+                      "antidepressant_therapy",
+                      "benzodiazepine_medication",
+                      "clonazepam"],
+                      axis=1)
 
+X_pred.columns
 #split data into train/test by a 2/10 vs 8/10 ratio for model assessment
 x_train, x_test, y_train, y_test = train_test_split(X_pred.drop("parkinson", axis=1),
                                                     X_pred["parkinson"],
@@ -164,7 +171,7 @@ x_train = sc.fit_transform(x_train, y_train)
 x_test = sc.transform(x_test)
 
 #10-Fold Cross Validation
-rkf_validation = RepeatedKFold(n_splits=10, n_repeats=5)
+rkf_validation = RepeatedKFold(n_splits=10, n_repeats=2)
 
 #Randomized Grid
 #LDA has a closed-form solution and therefore has no hyperparameters.
@@ -230,3 +237,24 @@ supvec = svm.SVC(gamma = "auto",
 
 supvec.fit(x_train, y_train)
 supvec.score(x_test, y_test)
+
+val = cross_val_score(supvec, x_train, y_train, cv = 10)
+val.mean()
+val.std()
+
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+randfor = RandomForestClassifier()
+randfor.fit(x_train,y_train)
+randfor.score(x_test, y_test)
+
+from sklearn.model_selection import cross_val_score
+val = cross_val_score(randfor, x_train, y_train, cv = 10)
+val.mean()
+val.std()
+
+gradb = GradientBoostingClassifier()
+gradb.fit(x_train ,y_train)
+gradb.score(x_test, y_test)
+val = cross_val_score(gradb, x_train, y_train, cv = 10)
+val.mean()
+val.std()

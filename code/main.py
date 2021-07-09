@@ -20,6 +20,8 @@ from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn import svm
+from sklearn.cluster import KMeans
+
 #----- setup -----#
 
 #set working directory
@@ -142,6 +144,7 @@ desc_stat = pd.DataFrame(desc_stat)
 del [i,
      park_no,
      park_yes]
+
 #----- Predict early-onset parkinson disease -----#
 
 #prepare data
@@ -153,13 +156,15 @@ X_pred = X_nona.drop(["age",
                       "clonazepam"],
                       axis=1)
 
-X_pred.columns
-#split data into train/test by a 2/10 vs 8/10 ratio for model assessment
+# stratified split of data into train (80%) and test (20%) with sampling (shuffle)
+#Test data will be used for model assessment
 x_train, x_test, y_train, y_test = train_test_split(X_pred.drop("parkinson", axis=1),
                                                     X_pred["parkinson"],
-                                                    test_size = 0.2)
+                                                    test_size = 0.2,
+                                                    shuffle=True,
+                                                    stratify=X_pred["parkinson"])
 
-#is the assessment data still balanced?
+#is the assessment data well balanced?
 len(y_train)
 len(y_test)
 y_train.value_counts(normalize=True)
@@ -209,9 +214,9 @@ results = []
 #hyperparameter tuning
 for model_name, mp in models_hyperparameters.items():
     model = GridSearchCV(mp["model"], 
-                         mp["hyperparameters"],
-                         cv=rkf_validation,
-                         return_train_score=False)
+                          mp["hyperparameters"],
+                          cv=rkf_validation, #use 2x repeated 10-fold cv
+                          return_train_score=False)
     model.fit(x_train, y_train)
     results.append({
         "model": model_name,
@@ -219,6 +224,7 @@ for model_name, mp in models_hyperparameters.items():
         "best_params": model.best_params_
     })
 
+#convert results to more readable DataFrame format
 results = pd.DataFrame(results, columns=['model','best_score','best_params'])
 
 #a priori probability
@@ -235,26 +241,43 @@ supvec = svm.SVC(gamma = "auto",
                  degree = par.get("degree"),
                  kernel = par.get("kernel"))
 
+#out-of-sample performance
 supvec.fit(x_train, y_train)
 supvec.score(x_test, y_test)
 
+#mean and sd on 10 fits in-sample
 val = cross_val_score(supvec, x_train, y_train, cv = 10)
 val.mean()
 val.std()
 
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-randfor = RandomForestClassifier()
-randfor.fit(x_train,y_train)
-randfor.score(x_test, y_test)
+#delete unneeded variables
+del [model, 
+     model_name,
+     models_hyperparameters,
+     mp,
+     par,
+     rkf_validation, 
+     sc,
+     x_train,
+     x_test,
+     y_train,
+     y_test]
 
-from sklearn.model_selection import cross_val_score
-val = cross_val_score(randfor, x_train, y_train, cv = 10)
-val.mean()
-val.std()
+#----- Trying to recover the labels with KMeans -----#
 
-gradb = GradientBoostingClassifier()
-gradb.fit(x_train ,y_train)
-gradb.score(x_test, y_test)
-val = cross_val_score(gradb, x_train, y_train, cv = 10)
-val.mean()
-val.std()
+#prepare data
+X_kmeans = X_pred.drop("parkinson", axis=1)
+
+sc = StandardScaler()
+X_kmeans = sc.fit_transform(X_kmeans)
+
+#modelling KMeans algorithm
+kmeans = KMeans(n_clusters=2, n_init = 10)
+kmeans.fit(X_kmeans)
+
+#predict labels 
+pred_labels = kmeans.fit_predict(X_kmeans)
+
+#compare predicted labels with true labels
+confusion_matrix(pred_labels, X_pred["parkinson"])
+print(classification_report(pred_labels, X_pred["parkinson"]))

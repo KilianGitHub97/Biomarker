@@ -11,9 +11,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 #Model selection
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import RepeatedKFold
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split, cross_val_score, RepeatedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, classification_report
 #Models
@@ -140,10 +138,30 @@ desc_stat = {
 #convert dictionary to dataframe
 desc_stat = pd.DataFrame(desc_stat)
 
+#plot mean differences
+
+#pivot DataFrame
+desc_stat_plot = desc_stat.melt(id_vars="col_names",
+                                value_vars=["mean_yes", "mean_no"],
+                                value_name= "means")
+ 
+#make lineplot with rotated axis                               
+mean_plt = sns.lineplot(data = desc_stat_plot,
+                        x = "col_names",
+                        y = "means",
+                        hue = "variable",
+                        marker="o")
+mean_plt.set_xticklabels(labels=list(desc_stat["col_names"]),
+                         rotation=90)
+mean_plt.set(xlabel="column name",
+             ylabel="mean",
+             title="Differences in mean between \n parkinson-patients (mean_yes) and control (mean_no)")
+                                               
 #delete unneeded variables
 del [i,
      park_no,
-     park_yes]
+     desc_stat_plot,
+     mean_plt]
 
 #----- Predict early-onset parkinson disease -----#
 
@@ -155,6 +173,12 @@ X_pred = X_nona.drop(["age",
                       "benzodiazepine_medication",
                       "clonazepam"],
                       axis=1)
+
+#plot the whole dataset
+sns.pairplot(X_pred,
+             hue="parkinson",
+             palette="Set2",
+             diag_kind="kde")
 
 # stratified split of data into train (80%) and test (20%) with sampling (shuffle)
 #Test data will be used for model assessment
@@ -258,6 +282,7 @@ del [model,
      par,
      rkf_validation, 
      sc,
+     val,
      x_train,
      x_test,
      y_train,
@@ -281,3 +306,13 @@ pred_labels = kmeans.fit_predict(X_kmeans)
 #compare predicted labels with true labels
 confusion_matrix(pred_labels, X_pred["parkinson"])
 print(classification_report(pred_labels, X_pred["parkinson"]))
+
+#delete unneeded variables
+del [kmeans,
+     pred_labels,
+     sc,
+     X_kmeans]
+
+#----- predict parkinson state labels -----#
+
+y = park_yes["overview_of_motor_examination_updrs_iii_total"]

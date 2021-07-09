@@ -160,6 +160,7 @@ mean_plt.set(xlabel="column name",
 #delete unneeded variables
 del [i,
      park_no,
+     park_yes,
      desc_stat_plot,
      mean_plt]
 
@@ -314,5 +315,21 @@ del [kmeans,
      X_kmeans]
 
 #----- predict parkinson state labels -----#
+y = X.loc[X["parkinson"] == 1]["overview_of_motor_examination_updrs_iii_total"]
+x = X.loc[X["parkinson"] == 1, "speech":"body_bradykinesia_and_hypokinesia"]
 
-y = park_yes["overview_of_motor_examination_updrs_iii_total"]
+x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.2, shuffle=True)
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+lm = LinearRegression()
+lm.fit(x_train,y_train)
+y_pred=lm.predict(x_test)
+
+pred = pd.Series(lm_fit.predict(x).round(1))
+y = pd.to_numeric(y)
+
+r2_score(y_test, y_pred)
+y_test.corr(pred)
+
+#the model is able to perfectly recover the final score

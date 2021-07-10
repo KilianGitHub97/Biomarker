@@ -10,13 +10,12 @@ import os
 import pandas as pd
 import numpy as np
 import seaborn as sns
-#Model selection
 from sklearn.model_selection import train_test_split, cross_val_score, RepeatedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, classification_report
-#Models
+from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn import svm
 from sklearn.cluster import KMeans
 
@@ -28,7 +27,7 @@ os.chdir(wd)
 
 #read in data
 X = pd.read_csv("..\\data\\biomarker_clean.csv")
-X.columns
+
 #options
 pd.set_option("display.max_columns", 65)
 pd.set_option("display.max_rows", 65)
@@ -138,8 +137,7 @@ desc_stat = {
 #convert dictionary to dataframe
 desc_stat = pd.DataFrame(desc_stat)
 
-#plot mean differences
-
+#---------------------- plot mean differences ----------------------------#
 #pivot DataFrame
 desc_stat_plot = desc_stat.melt(id_vars="col_names",
                                 value_vars=["mean_yes", "mean_no"],
@@ -156,7 +154,7 @@ mean_plt.set_xticklabels(labels=list(desc_stat["col_names"]),
 mean_plt.set(xlabel="column name",
              ylabel="mean",
              title="Differences in mean between \n parkinson-patients (mean_yes) and control (mean_no)")
-                                               
+#-------------------------------------------------------------------------#                                               
 #delete unneeded variables
 del [i,
      park_no,
@@ -176,10 +174,10 @@ X_pred = X_nona.drop(["age",
                       axis=1)
 
 #plot the whole dataset
-sns.pairplot(X_pred,
-             hue="parkinson",
-             palette="Set2",
-             diag_kind="kde")
+# sns.pairplot(X_pred,
+#              hue="parkinson",
+#              palette="Set2",
+#              diag_kind="kde")
 
 # stratified split of data into train (80%) and test (20%) with sampling (shuffle)
 #Test data will be used for model assessment
@@ -200,34 +198,47 @@ sc = StandardScaler()
 x_train = sc.fit_transform(x_train, y_train)
 x_test = sc.transform(x_test)
 
-#10-Fold Cross Validation
-rkf_validation = RepeatedKFold(n_splits=10, n_repeats=2)
+#--------------------- plot classification problem ---------------------#
+#reduce data onto two axis
+pca = PCA(n_components=2)
+pca.fit(x_train)
+PCs = pca.transform(x_train)
+
+#how much information will be covered by the plot? approx. 39%
+exp_var = pca.explained_variance_ratio_.sum().round(2)
+
+#plot classification problem
+pca_plot = sns.scatterplot(x = PCs[:,0],
+                           y = PCs[:,1],
+                           hue = y_train,
+                           legend = True)
+pca_plot.set(xlabel="Principal Component 1",
+             ylabel="Principal Component 2",
+             title="Classificationproblem in two principal components \n NOTE: the two PCs only cover approx. {} of the total variance!".format(exp_var))
+#----------------------------------------------------------------------#
+
+#LeaveOneOut Cross Validation
+rkf_validation = RepeatedKFold(n_splits = 10, n_repeats = 5)
 
 #Randomized Grid
-#LDA has a closed-form solution and therefore has no hyperparameters.
-#The solution can be obtained using the empirical sample class covariance
-#matrix. Shrinkage is used when there are not enough samples. In that case
-#the empirical covariance matrix is often not a very good estimator.
 models_hyperparameters = {
     "logistic_regression" : {
         "model" : LogisticRegression(solver="liblinear"),
         "hyperparameters" : {
-            "penalty" : ["l1", "l2"],
             "C" : [0.5, 0.7, 1, 3, 5, 10]
             }
         },
-    "linear_discriminant_analysis" : {
-        "model" : LinearDiscriminantAnalysis(solver="lsqr"),
+    "quadratic_discriminant_analysis" : {
+        "model" : QuadraticDiscriminantAnalysis(),
         "hyperparameters" : {
-            "shrinkage": list(np.arange(0,1,0.1))
+            "reg_param": list(np.arange(0,1,0.1))
             }
-        },
+         },
     "support_vector_machine" : {
-        "model" : svm.SVC(gamma = "auto", shrinking = True),
+        "model" : svm.SVC(gamma = "auto", shrinking =True),
         "hyperparameters" : {
-            "kernel" : ["linear", "poly", "rbf", "sigmoid"],
+            "kernel" : ["linear", "poly", "rbf"],
             "C" : [0.1, 0.5, 1, 1.5, 2, 5, 10],
-            "coef0" : [0.1, 0.5, 0.8, 1, 1.5, 2, 5],
             "degree" : [i for i in range(1,6)]
             }
         }
@@ -255,32 +266,100 @@ results = pd.DataFrame(results, columns=['model','best_score','best_params'])
 #a priori probability
 X["parkinson"].value_counts(normalize=True)
 
+#recreate SVM-model
 #get best parameters
-par = results.iat[2,2]
+par_supvec = results.iat[2,2]
 
-#recreate model
 supvec = svm.SVC(gamma = "auto",
                  shrinking = True,
-                 C = par.get("C"),
-                 coef0 = par.get("coef0"),
-                 degree = par.get("degree"),
-                 kernel = par.get("kernel"))
+                 C = par_supvec.get("C"),
+                 degree = par_supvec.get("degree"),
+                 kernel = par_supvec.get("kernel"))
 
-#out-of-sample performance
+#fit model
 supvec.fit(x_train, y_train)
-supvec.score(x_test, y_test)
 
 #mean and sd on 10 fits in-sample
 val = cross_val_score(supvec, x_train, y_train, cv = 10)
 val.mean()
 val.std()
 
+#in-sample performance
+y_pred_supvec_train = pd.Series(supvec.predict(x_train))
+confusion_matrix(y_train, y_pred_supvec_train)
+print(classification_report(y_pred_supvec_train, y_train))
+
+#out-of-sample-performance
+y_pred_supvec_test = pd.Series(supvec.predict(x_test))
+confusion_matrix(y_test, y_pred_supvec_test)
+print(classification_report(y_pred_supvec_test, y_test))
+
+#recreate logreg model
+#get best parameters
+par_logreg = results.iat[0,2]
+
+logreg = LogisticRegression(C = par_logreg.get("C"))
+
+#fit model
+logreg.fit(x_train, y_train)
+
+#mean and sd on 10 fits in-sample
+val = cross_val_score(logreg, x_train, y_train, cv = 10)
+val.mean()
+val.std()
+
+#in-sample performance
+y_pred_logreg_train = pd.Series(logreg.predict(x_train))
+confusion_matrix(y_train, y_pred_logreg_train)
+print(classification_report(y_pred_logreg_train, y_train))
+
+#out-of-sample-performance
+y_pred_logreg_test = pd.Series(logreg.predict(x_test))
+confusion_matrix(y_test, y_pred_logreg_test)
+print(classification_report(y_pred_logreg_test, y_test))
+
+#recreate QDA model
+#get best parameters
+par_qda = results.iat[1,2]
+
+qda = QuadraticDiscriminantAnalysis(reg_param = par_qda.get("reg_param"))
+
+#fit model
+qda.fit(x_train, y_train)
+
+#mean and sd on 10 fits in-sample
+val = cross_val_score(qda, x_train, y_train, cv = 10)
+val.mean()
+val.std()
+
+#in-sample performance
+y_pred_qda_train = pd.Series(qda.predict(x_train))
+confusion_matrix(y_train, y_pred_qda_train)
+print(classification_report(y_pred_qda_train, y_train))
+
+#out-of-sample-performance
+y_pred_qda_test = pd.Series(qda.predict(x_test))
+confusion_matrix(y_test, y_pred_qda_test)
+print(classification_report(y_pred_qda_test, y_test))
+
 #delete unneeded variables
 del [model, 
      model_name,
      models_hyperparameters,
      mp,
-     par,
+     pca,
+     pca_plot,
+     PCs,
+     exp_var,
+     par_supvec,
+     par_logreg,
+     par_qda,
+     y_pred_logreg_test,
+     y_pred_logreg_train,
+     y_pred_qda_test,
+     y_pred_qda_train,
+     y_pred_supvec_test,
+     y_pred_supvec_train,
      rkf_validation, 
      sc,
      val,
@@ -313,23 +392,3 @@ del [kmeans,
      pred_labels,
      sc,
      X_kmeans]
-
-#----- predict parkinson state labels -----#
-y = X.loc[X["parkinson"] == 1]["overview_of_motor_examination_updrs_iii_total"]
-x = X.loc[X["parkinson"] == 1, "speech":"body_bradykinesia_and_hypokinesia"]
-
-x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.2, shuffle=True)
-
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-lm = LinearRegression()
-lm.fit(x_train,y_train)
-y_pred=lm.predict(x_test)
-
-pred = pd.Series(lm_fit.predict(x).round(1))
-y = pd.to_numeric(y)
-
-r2_score(y_test, y_pred)
-y_test.corr(pred)
-
-#the model is able to perfectly recover the final score

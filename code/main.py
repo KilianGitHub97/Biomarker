@@ -2,10 +2,11 @@
 """
 Created on Wed Jun 30 16:43:06 2021
 
-@author: kilia
+@author: Kilian
 """
 
-#----- libraries -----#
+########################## libraries ##########################
+
 import os
 import pandas as pd
 import numpy as np
@@ -16,13 +17,16 @@ from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn import svm
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 
-#----- setup -----#
+###############################################################
+
+########################## setup ##############################
 
 #set working directory
-wd = "C:\\Users\\kilia\\Documents\\GitHub\\Biomarker\\code"
+#wd = "C:\\Users\\kilia\\Documents\\GitHub\\Biomarker\\code"
+wd = "D:\\Bibliotheken\\Dokumente\\GitHub\\Biomarker\\code"
 os.chdir(wd)
 
 #read in data
@@ -32,7 +36,9 @@ X = pd.read_csv("..\\data\\biomarker_clean.csv")
 pd.set_option("display.max_columns", 65)
 pd.set_option("display.max_rows", 65)
 
-#---- feature modification & engineering -----#
+###############################################################
+
+########### feature modification & engineering ################
 
 #make criterion column for early-onset parkinson disease
 #for the sake of simplicity, pd and rbd patients were all labeled as ill
@@ -86,7 +92,9 @@ del [wd,
      parkinson,
      string]
 
-#----- descriptive statistics -----#
+###############################################################
+
+################ descriptive statistics #######################
 
 #disease
 X["parkinson"].value_counts().plot(kind="bar")
@@ -113,7 +121,9 @@ sns.heatmap(cormat, cbar=True)
 
 del cormat
 
-#----- mean comparisons -----#
+###############################################################
+
+##################### mean comparisons ########################
 
 #check columns that unclude NaN and drop columns (axis=1 for columns)
 X.isna().sum()
@@ -154,7 +164,8 @@ mean_plt.set_xticklabels(labels=list(desc_stat["col_names"]),
 mean_plt.set(xlabel="column name",
              ylabel="mean",
              title="Differences in mean between \n parkinson-patients (mean_yes) and control (mean_no)")
-#-------------------------------------------------------------------------#                                               
+#-------------------------------------------------------------------------# 
+                                              
 #delete unneeded variables
 del [i,
      park_no,
@@ -162,7 +173,9 @@ del [i,
      desc_stat_plot,
      mean_plt]
 
-#----- Predict early-onset parkinson disease -----#
+###############################################################
+
+########### Predict early-onset parkinson disease #############
 
 #prepare data
 X_pred = X_nona.drop(["age",
@@ -173,11 +186,14 @@ X_pred = X_nona.drop(["age",
                       "clonazepam"],
                       axis=1)
 
-#plot the whole dataset
+#-------------------- plot the whole dataset ---------------------#
+
 # sns.pairplot(X_pred,
 #              hue="parkinson",
 #              palette="Set2",
 #              diag_kind="kde")
+#-----------------------------------------------------------------#
+
 
 # stratified split of data into train (80%) and test (20%) with sampling (shuffle)
 #Test data will be used for model assessment
@@ -217,7 +233,7 @@ pca_plot.set(xlabel="Principal Component 1",
              title="Classificationproblem in two principal components \n NOTE: the two PCs only cover approx. {} of the total variance!".format(exp_var))
 #----------------------------------------------------------------------#
 
-#LeaveOneOut Cross Validation
+#5x repeated 10-fold Cross Validation
 rkf_validation = RepeatedKFold(n_splits = 10, n_repeats = 5)
 
 #Randomized Grid
@@ -234,12 +250,12 @@ models_hyperparameters = {
             "reg_param": list(np.arange(0,1,0.1))
             }
          },
-    "support_vector_machine" : {
-        "model" : svm.SVC(gamma = "auto", shrinking =True),
+    "random_forest" : {
+        "model" : RandomForestClassifier(bootstrap=True),
         "hyperparameters" : {
-            "kernel" : ["linear", "poly", "rbf"],
-            "C" : [0.1, 0.5, 1, 1.5, 2, 5, 10],
-            "degree" : [i for i in range(1,6)]
+            "n_estimators" : [100, 200, 300, 400],
+            "max_depth" : [i for i in range(1, 6)]
+            
             }
         }
 }
@@ -266,33 +282,7 @@ results = pd.DataFrame(results, columns=['model','best_score','best_params'])
 #a priori probability
 X["parkinson"].value_counts(normalize=True)
 
-#recreate SVM-model
-#get best parameters
-par_supvec = results.iat[2,2]
 
-supvec = svm.SVC(gamma = "auto",
-                 shrinking = True,
-                 C = par_supvec.get("C"),
-                 degree = par_supvec.get("degree"),
-                 kernel = par_supvec.get("kernel"))
-
-#fit model
-supvec.fit(x_train, y_train)
-
-#mean and sd on 10 fits in-sample
-val = cross_val_score(supvec, x_train, y_train, cv = 10)
-val.mean()
-val.std()
-
-#in-sample performance
-y_pred_supvec_train = pd.Series(supvec.predict(x_train))
-confusion_matrix(y_train, y_pred_supvec_train)
-print(classification_report(y_pred_supvec_train, y_train))
-
-#out-of-sample-performance
-y_pred_supvec_test = pd.Series(supvec.predict(x_test))
-confusion_matrix(y_test, y_pred_supvec_test)
-print(classification_report(y_pred_supvec_test, y_test))
 
 #recreate logreg model
 #get best parameters
@@ -318,6 +308,8 @@ y_pred_logreg_test = pd.Series(logreg.predict(x_test))
 confusion_matrix(y_test, y_pred_logreg_test)
 print(classification_report(y_pred_logreg_test, y_test))
 
+
+
 #recreate QDA model
 #get best parameters
 par_qda = results.iat[1,2]
@@ -342,6 +334,35 @@ y_pred_qda_test = pd.Series(qda.predict(x_test))
 confusion_matrix(y_test, y_pred_qda_test)
 print(classification_report(y_pred_qda_test, y_test))
 
+
+
+#recreate RandomForest-model
+#get best parameters
+par_randfor = results.iat[2,2]
+
+randfor = RandomForestClassifier(bootstrap = True,
+                                 n_estimators = par_randfor.get("n_estimators"),
+                                 max_depth=par_randfor.get("max_depth"))
+
+#fit model
+randfor.fit(x_train, y_train)
+
+#mean and sd on 10 fits in-sample
+val = cross_val_score(randfor, x_train, y_train, cv = 10)
+val.mean()
+val.std()
+
+#in-sample performance
+y_pred_randfor_train = pd.Series(randfor.predict(x_train))
+confusion_matrix(y_train, y_pred_randfor_train)
+print(classification_report(y_pred_randfor_train, y_train))
+
+#out-of-sample-performance
+y_pred_randfor_test = pd.Series(randfor.predict(x_test))
+confusion_matrix(y_test, y_pred_randfor_test)
+print(classification_report(y_pred_randfor_test, y_test))
+
+
 #delete unneeded variables
 del [model, 
      model_name,
@@ -351,15 +372,15 @@ del [model,
      pca_plot,
      PCs,
      exp_var,
-     par_supvec,
+     par_randfor,
      par_logreg,
      par_qda,
      y_pred_logreg_test,
      y_pred_logreg_train,
      y_pred_qda_test,
      y_pred_qda_train,
-     y_pred_supvec_test,
-     y_pred_supvec_train,
+     y_pred_randfor_test,
+     y_pred_randfor_train,
      rkf_validation, 
      sc,
      val,
@@ -368,7 +389,9 @@ del [model,
      y_train,
      y_test]
 
-#----- Trying to recover the labels with KMeans -----#
+###############################################################
+
+########## Trying to recover the labels with KMeans ###########
 
 #prepare data
 X_kmeans = X_pred.drop("parkinson", axis=1)
@@ -392,3 +415,5 @@ del [kmeans,
      pred_labels,
      sc,
      X_kmeans]
+
+###############################################################

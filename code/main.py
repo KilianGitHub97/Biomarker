@@ -25,8 +25,8 @@ from sklearn.cluster import KMeans
 ########################## setup ##############################
 
 #set working directory
-#wd = "C:\\Users\\kilia\\Documents\\GitHub\\Biomarker\\code"
-wd = "D:\\Bibliotheken\\Dokumente\\GitHub\\Biomarker\\code"
+wd = "C:\\Users\\kilia\\Documents\\GitHub\\Biomarker\\code"
+#wd = "D:\\Bibliotheken\\Dokumente\\GitHub\\Biomarker\\code"
 os.chdir(wd)
 
 #read in data
@@ -141,7 +141,8 @@ desc_stat = {
     "sd_yes" : list(park_yes.std()),
     "mean_no" : list(park_no.mean()),
     "sd_no" : list(park_no.std()),
-    "difference_in_mean" : list(park_no.mean() - park_yes.mean())
+    "difference_in_mean" : list(park_no.mean() - park_yes.mean()),
+    "Effect" : list( (park_no.mean() - park_yes.mean()).abs() / ( (park_no.std() + park_yes.std()) / 2 ) )
     }
 
 #convert dictionary to dataframe
@@ -221,7 +222,7 @@ pca.fit(x_train)
 PCs = pca.transform(x_train)
 
 #how much information will be covered by the plot? approx. 39%
-exp_var = pca.explained_variance_ratio_.sum().round(2)
+exp_var = pca.explained_variance_ratio_.sum().round(3) * 100
 
 #plot classification problem
 pca_plot = sns.scatterplot(x = PCs[:,0],
@@ -230,7 +231,7 @@ pca_plot = sns.scatterplot(x = PCs[:,0],
                            legend = True)
 pca_plot.set(xlabel="Principal Component 1",
              ylabel="Principal Component 2",
-             title="Classificationproblem in two principal components \n NOTE: the two PCs only cover approx. {} of the total variance!".format(exp_var))
+             title="Classificationproblem in two principal components \n NOTE: the two PCs only cover approx. {}% of the total variance!".format(exp_var))
 #----------------------------------------------------------------------#
 
 #5x repeated 10-fold Cross Validation

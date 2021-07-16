@@ -104,7 +104,7 @@ var_summary = {
 var_summary = pd.DataFrame(var_summary)
 
 '''
-var_summary.to_excel("..\\report\\dictionary.xlsx",
+var_summary.to_excel("..\\accompanying_docs\\dictionary.xlsx",
                      index=False,
                      header=True)
 '''
